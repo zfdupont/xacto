@@ -1,0 +1,7 @@
+put a 1
+put b 2
+put c 3
+get a
+get b
+get c
+commit
