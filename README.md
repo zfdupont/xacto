@@ -1,27 +1,6 @@
+## The Xanadu Server and Protocol: Overview
 
-The goal of this assignment is to become familiar with low-level POSIX
-threads, multi-threading safety, concurrency guarantees, and networking.
-The overall objective is to implement a simple multi-threaded
-transactional object store.
-
-### Textbook Readings
-
-You should make sure that you understand the material covered in
-chapters **11.4** and **12** of **Computer Systems: A Programmer's
-Perspective 3rd Edition** before starting this assignment.  These
-chapters cover networking and concurrency in great detail and will be
-an invaluable resource for this assignment.
-
-### pthread Man Pages
-
-The pthread man pages can be easily accessed through your terminal.
-However, [this opengroup.org site](http://pubs.opengroup.org/onlinepubs/7908799/xsh/pthread.h.html)
-provides a list of all the available functions.  The same list is also
-available for [semaphores](http://pubs.opengroup.org/onlinepubs/7908799/xsh/semaphore.h.html).
-
-## The Xacto Server and Protocol: Overview
-
-The "Xacto" server implements a simple transactional object store,
+The "Xanadu" server implements a simple transactional object store,
 designed for use in a network environment.  For the purposes of this
 assignment, an object store is essentially a hash map that maps
 **keys** to **values**, where both keys and values can be arbitrary data.
@@ -51,7 +30,7 @@ aborted, the server closes the client connection.  The client may
 then open a new connection and retry the operations in the context of
 a new transaction.
 
-The Xacto server architecture is that of a multi-threaded network
+The Xanadu server architecture is that of a multi-threaded network
 server.  When the server is started, a **master** thread sets up a
 socket on which to listen for connections from clients.  When a
 connection is accepted, a **client service thread** is started to
@@ -66,7 +45,7 @@ server.
 > :nerd: One of the basic tenets of network programming is that a
 > network connection can be broken at any time and the parties using
 > such a connection must be able to handle this situation.  In the
-> present context, the client's connection to the Xacto server may
+> present context, the client's connection to the Xanadu server may
 > be broken at any time, either as a result of explicit action by the
 > client or for other reasons.  When disconnection of the client is
 > noticed by the client service thread, the client's transaction
@@ -75,7 +54,7 @@ server.
 ### The Base Code
 
 The base code consists of header files that define module interfaces,
-a library `xacto.a` containing binary object code for our
+a library `xanadu.a` containing binary object code for our
 implementations of the modules, and a source code file `main.c` that
 contains containing a stub for function `main()`.  The `Makefile` is
 designed to compile any existing source code files and then link them
@@ -96,8 +75,7 @@ with the standard input redirected from a file.
 
 When the base code is compiled and run, it will print out a message
 saying that the server will not function until `main()` is
-implemented.  This is your first task.  The `main()` function will
-need to do the following things:
+implemented.  The `main()` function will do the following things:
 
 - Obtain the port number to be used by the server from the command-line
   arguments.  The port number is to be supplied by the required option
@@ -110,32 +88,22 @@ need to do the following things:
 
 - Set up the server socket and enter a loop to accept connections
   on this socket.  For each connection, a thread should be started to
-  run function `xacto_client_service()`.
-
-These things should be relatively straightforward to accomplish, given the
-information presented in class and in the textbook.  If you do them properly,
-the server should function and accept connections on the specified port,
-and you should be able to connect to the server using the test client.
-Note that if you build the server using `make debug`, then the binaries
-we have supplied will produce a fairly extensive debugging trace of what
-they are doing.  This, together with the specifications in this document
-and in the header files, will likely be invaluable to you in understanding
-the desired behavior of the various modules.
+  run function `xanadu_client_service()`.
 
 ## Task II: Send and Receive Functions
 
 The header file `include/protocol.h` defines the format of the packets
-used in the Xacto network protocol.  The concept of a protocol is an
+used in the Xanadu network protocol.  The concept of a protocol is an
 important one to understand.  A protocol creates a standard for
 communication so that any program implementing a protocol will be able
 to connect and operate with any other program implementing the same
 protocol.  Any client should work with any server if they both
-implement the same protocol correctly.  In the Xacto protocol,
+implement the same protocol correctly.  In the Xanadu protocol,
 clients and servers exchange **packets** with each other.  Each packet
 has two parts: a fixed-size part that describes the packet, and an
 optional **payload** that can carry arbitrary data.  The fixed-size
 part of a packet always has the same size and format, which is given
-by the `xacto_packet` structure; however the payload can be of arbitrary
+by the `xanadu_packet` structure; however the payload can be of arbitrary
 size.  One of the fields in the fixed-size part tells how long the payload is.
 
 - The function `proto_send_packet` is used to send a packet over a
@@ -164,13 +132,6 @@ page for `ntohl()`), if the length field of the header is nonzero then
 an additional `read()` is used to read the payload from the wire.  The
 header and payload are stored using pointers supplied by the caller.
 
-**NOTE:** Remember that it is always possible for `read()` and `write()`
-to read or write fewer bytes than requested.  You must check for and
-handle these "short count" situations.
-
-Implement these functions in a file `protocol.c`.  If you do it
-correctly, the server should function as before.
-
 ## Task III: Client Registry
 
 You probably noticed the initialization of the `client_registry`
@@ -182,24 +143,12 @@ connections and to await the termination of all server threads
 before finally terminating itself.
 
 The functions provided by a client registry are specified in the
-`client_registry.h` header file.  Provide implementations for these
-functions in a file `src/client_registry.c`.  Note that these functions
-need to be thread-safe, so synchronization will be required.  Use a
-mutex to protect access to the thread counter data.  Use a semaphore
+`client_registry.h` header file. These functions
+need to be thread-safe, so a mutex is used to protect access to 
+the thread counter data.  A semaphore is used
 to perform the required blocking in the `creg_wait_for_empty()`
-function.  To shut down a client connection, use the `shutdown()`
-function described in Section 2 of the Linux manual pages.
-
-Implementing the client registry should be a fairly easy warm-up
-exercise in concurrent programming.  If you do it correctly, the
-Xacto server should still shut down cleanly in response to SIGHUP
-using your version.
-
-**Note:** You should test your client registry separately from the
-server.  Create test threads that rapidly call `creg_register()` and
-`creg_unregister()` methods concurrently and then check that a call to the
-`creg_wait_for_empty()` function blocks until the number of registered
-clients reaches zero, and then returns.
+function.  To shut down a client connection, the `shutdown()`
+function described in Section 2 of the Linux manual pages is used.
 
 ## Task IV: Data Module
 
@@ -239,16 +188,14 @@ Note that, in a multi-threaded setting, reference counts are shared
 between threads and therefore need to be protected by mutexes if
 they are to work reliably.
 
-With the above information in mind, the implementation of this module
-should be relatively straightforward.
 
 ## Task V: Client Service Thread
 
 Next, you should implement the thread function that performs service
-for a client.  This function is called `xacto_client_service`, and
+for a client.  This function is called `xanadu_client_service`, and
 you should implement it in the `src/server.c` file.
 
-The `xacto_client_service` function is invoked as the thread function
+The `xanadu_client_service` function is invoked as the thread function
 for a thread that is created to service a client connection.
 The argument is a pointer to the integer file descriptor to be used
 to communicate with the client.  Once this file descriptor has been
@@ -268,8 +215,7 @@ client connection.
 
 ## Task VI: Transaction Manager
 
-Probably the next easiest module to implement is the transaction manager,
-which is responsible for creating, committing, and aborting transactions.
+The transaction manager is responsible for creating, committing, and aborting transactions.
 The various functions that have to be implemented are specified in
 `transaction.h` header file.
 
@@ -345,10 +291,6 @@ to the "committed" state.
 
 ## Task VII: Transactional Store
 
-If you have made it this far, then you can try to implement the
-transactional store module itself.  This is probably the most technical
-of the various modules, so you probably need to have a good understanding
-of what is going on before you attempt the implementation.
 The functions for the store are specified in the `store.h` header
 file, where some further details of how the store works are given.
 Besides the fairly straightforward initialization and finalization
@@ -375,10 +317,5 @@ store is during the "garbage collection" phase carried out at the
 beginning of a `store_put` or `store_get` operation.
 Upon completion of an operation, there will in general be "extra"
 versions in the store that will get cleaned up on the next call
-to `store_put` or `store_get`.  You will want to be careful to
-manage the reference counts on the various objects so that you
-don't end up with any blobs or transactions that hang around
-forever, even when they are not reachable from anything in the store,
-and that you don't attempt to decrease any reference count below
-zero.  If you do this all correctly, then when the server terminates
+to `store_put` or `store_get`.  When the server terminates
 (as a result of `SIGHUP`), all objects will be cleanly freed.
